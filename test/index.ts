@@ -4,11 +4,11 @@ import init, { acir_read_bytes, compile } from '@noir-lang/noir_wasm';
 
 import fs from 'fs';
 import { expect } from 'chai';
-// @ts-ignore
 import {
   create_proof,
   verify_proof,
   setup_generic_prover_and_verifier,
+  // @ts-ignore
 } from '@noir-lang/barretenberg';
 import { ethers } from 'hardhat';
 import Ethers from '../utils/ethers';
@@ -41,7 +41,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
   before(async () => {
     initialiseResolver((id: any) => {
       try {
-        return fs.readFileSync(`src/${id}`, { encoding: 'utf8' }) as string;
+        return fs.readFileSync(`circuit/${id}`, { encoding: 'utf8' }) as string;
       } catch (err) {
         console.error(err);
         throw err;
