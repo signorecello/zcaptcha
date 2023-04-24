@@ -6,25 +6,23 @@ import { acir_read_bytes, compile } from '@noir-lang/noir_wasm';
 // @ts-ignore
 import { setup_generic_prover_and_verifier } from '@noir-lang/barretenberg';
 
-const MAIN_NR_PATH = 'src/main.nr';
-
 async function main() {
   if (existsSync(path.join(__dirname, '../contract/plonk_vk.sol'))) {
     unlinkSync(path.join(__dirname, '../contract/plonk_vk.sol'));
   }
 
-  initialiseResolver(() => {
+  initialiseResolver((id: any) => {
     try {
-      const string = readFileSync(MAIN_NR_PATH, { encoding: 'utf8' });
-      return string;
+      return readFileSync(`circuit/${id}`, { encoding: 'utf8' }) as string;
     } catch (err) {
       console.error(err);
       throw err;
     }
   });
 
-  console.log('Compiling...');
-  const compiled = await compile({});
+  const compiled = await compile({
+    entry_point: 'index.nr',
+  });
 
   const acir_bytes = new Uint8Array(Buffer.from(compiled.circuit, 'hex'));
   const acir = acir_read_bytes(acir_bytes);

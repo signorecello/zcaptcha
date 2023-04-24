@@ -1,9 +1,11 @@
-use dep::std;
+// This file is purposefully NOT called main.nr because I want to show
+// how to use entry_point when compiling via Typescript
+mod hash;
 
+// I know I could just have the body of hashStuff here, but I want to
+// show how to use a module in Noir
 fn main(solution : [u8; 32], solutionHash : pub [u8; 32]) -> pub bool {
-    let hash = std::hash::sha256(solution);
-    constrain hash == solutionHash;
-    hash == solutionHash
+    hash::hashStuff(solution, solutionHash)    
 }
 
 #[test]
