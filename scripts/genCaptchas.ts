@@ -12,11 +12,7 @@ export default async function generateCaptcha() {
     },
   });
 
-  // const c = {value: 400}
-
-  // const solution = convertSolutionToArrayBytes(c.value);
-
-  const solutionHash = getSolutionHash(c.value);
+  const solutionHash = await getSolutionHash(c.value);
   //   await c.save();
 
   c.captcha.write(path.join(__dirname, `../tmp/${c.value}.jpg`), function (err: Error) {
