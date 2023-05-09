@@ -4,15 +4,16 @@ import { ethers } from 'hardhat';
 import generateCaptcha from './genCaptchas';
 import { readFile, rm, rmdir } from 'fs/promises';
 import path from 'path';
+import { ensureEvenLengthHexString } from '../utils/util';
 const ipfsClient = require('ipfs-http-client');
 
 async function main() {
-  const Verifier = await ethers.getContractFactory('TurboVerifier');
+  const Verifier = await ethers.getContractFactory('UltraVerifier');
   const verifier = await Verifier.deploy();
 
   const verifierAddr = await verifier.deployed();
 
-  const Game = await ethers.getContractFactory('Waldo');
+  const Game = await ethers.getContractFactory('Captcha');
   const game = await Game.deploy(verifierAddr.address);
 
   if (process.env.NODE_ENV !== 'production') {
@@ -48,10 +49,13 @@ async function main() {
       opendir('tmp')
         .then(async () => {
           for await (const captcha of captchas) {
-            const file = await readFile(`tmp/${captcha.key}.jpg`);
+            const file = await readFile(`tmp/${captcha.key.string}.jpg`);
 
             const results = await client.add(file);
-            await game.addPuzzle(results.path, captcha.solutionHash);
+            console.log('results', JSON.stringify({ captcha, results }));
+            const hash = ensureEvenLengthHexString(captcha.solutionHash);
+            console.log('hash', hash);
+            await game.addPuzzle(results.path, hash);
           }
         })
         .then(async () => {

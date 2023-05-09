@@ -21,8 +21,58 @@ import {
   getSolutionHash,
   convertSolutionHashToArrayBytes,
   toArrayBytes,
-} from '../utils/captcha';
+  ensureEvenLengthHexString,
+} from '../utils/util';
+import { execSync } from 'child_process';
+import { writeFileSync, readFileSync, unlinkSync, rmdirSync, existsSync } from 'fs';
+import path from 'path';
+import toml, { JsonMap } from '@iarna/toml'; // First, install it with `npm install @iarna/toml`
+
 const ipfsClient = require('ipfs-http-client');
+
+// Define the interface for Prover.toml data
+interface ProverToml extends JsonMap {
+  solutionHash: string;
+  solution: number[];
+}
+
+async function createProof(solution: number[], solutionHash: string) {
+  // 👇 Workaround while BB is not OK
+  // Read the existing Prover.toml file (if it exists)
+  const proverTomlPath = 'Prover.toml';
+  let proverTomlContent = '';
+  let proverTomlData: ProverToml;
+
+  if (fs.existsSync(proverTomlPath)) {
+    proverTomlContent = fs.readFileSync(proverTomlPath, 'utf8');
+    proverTomlData = toml.parse(proverTomlContent) as unknown as ProverToml;
+  } else {
+    console.log('Prover.toml not found. Creating a new one.');
+    // Initialize proverTomlData with default values
+    proverTomlData = {
+      solutionHash: '',
+      solution: [],
+    };
+  }
+
+  // Update the values
+  proverTomlData.solutionHash = solutionHash;
+  proverTomlData.solution = solution;
+
+  // Convert the updated object back to TOML format
+  const updatedProverTomlContent = toml.stringify(proverTomlData);
+
+  // Write the updated TOML contents back to Prover.toml
+  fs.writeFileSync(proverTomlPath, updatedProverTomlContent, 'utf8');
+
+  console.log('Prover.toml updated successfully.');
+
+  execSync('nargo prove p');
+}
+
+async function verifyProof() {
+  execSync('nargo verify p');
+}
 
 describe('It compiles noir program code, receiving circuit bytes and abi object.', () => {
   let compiled: any;
@@ -39,40 +89,44 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
   let correctProof: any;
 
   before(async () => {
-    initialiseResolver((id: any) => {
-      try {
-        return fs.readFileSync(`src/${id}`, { encoding: 'utf8' }) as string;
-      } catch (err) {
-        console.error(err);
-        throw err;
-      }
-    });
+    // 👇 Workaround while BB is not OK
+    execSync('nargo codegen-verifier');
 
-    compiled = await compile({
-      // entry_point: 'main.nr',
-    });
+    //👇 This is assuming BB is OK
+    // initialiseResolver((id: any) => {
+    //   try {
+    //     return fs.readFileSync(`src/${id}`, { encoding: 'utf8' }) as string;
+    //   } catch (err) {
+    //     console.error(err);
+    //     throw err;
+    //   }
+    // });
 
-    expect(compiled).to.have.property('circuit');
-    expect(compiled).to.have.property('abi');
+    // compiled = await compile({
+    //   // entry_point: 'main.nr',
+    // });
 
-    let acir_bytes = new Uint8Array(Buffer.from(compiled.circuit, 'hex'));
-    acir = acir_read_bytes(acir_bytes);
+    // expect(compiled).to.have.property('circuit');
+    // expect(compiled).to.have.property('abi');
 
-    expect(acir).to.have.property('opcodes');
-    expect(acir).to.have.property('current_witness_index');
-    expect(acir).to.have.property('public_inputs');
+    // let acir_bytes = new Uint8Array(Buffer.from(compiled.circuit, 'hex'));
+    // acir = acir_read_bytes(acir_bytes);
 
-    [prover, verifier] = await setup_generic_prover_and_verifier(acir);
+    // expect(acir).to.have.property('opcodes');
+    // expect(acir).to.have.property('current_witness_index');
+    // expect(acir).to.have.property('public_parameters');
+
+    // [prover, verifier] = await setup_generic_prover_and_verifier(acir);
   });
 
   before('Deploy contract', async () => {
-    const Verifier = await ethers.getContractFactory('TurboVerifier');
+    const Verifier = await ethers.getContractFactory('UltraVerifier');
     const verifier = await Verifier.deploy();
 
     const verifierAddr = await verifier.deployed();
     console.log(`Verifier deployed to ${verifier.address}`);
 
-    const Game = await ethers.getContractFactory('Waldo');
+    const Game = await ethers.getContractFactory('Captcha');
     game = await Game.deploy(verifierAddr.address);
     console.log(`Game deployed to ${game.address}`);
 
@@ -95,9 +149,10 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     return opendir('tmp')
       .then(async () => {
-        const file = await readFile(`tmp/${captcha.key}.jpg`);
+        const file = await readFile(`tmp/${captcha.key.string}.jpg`);
         ipfsData = await client.add(file);
-        await game.addPuzzle(ipfsData.path, captcha.solutionHash);
+        const hash = ensureEvenLengthHexString(captcha.solutionHash);
+        await game.addPuzzle(ipfsData.path, hash);
       })
       .then(async () => {
         await rm('tmp', { recursive: true });
@@ -110,31 +165,47 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
   });
 
   before('Generate proof', async () => {
-    const solutionBytes = convertSolutionToArrayBytes(captcha.key);
-    // const solutionHashBytes = convertSolutionHashToArrayBytes(puzzle.solutionHash);
-    const input = { solution: solutionBytes, solutionHash: puzzle.solutionHash };
-    correctProof = await create_proof(prover, acir, input);
+    // 👇 Workaround while BB is not OK
+    await createProof(captcha.key.arrayBytes, puzzle.solutionHash);
+
+    //👇 This is assuming BB is OK
+    // const solutionBytes = convertSolutionToArrayBytes(captcha.key);
+    // // const solutionHashBytes = convertSolutionHashToArrayBytes(puzzle.solutionHash);
+    // const input = { solution: solutionBytes, solutionHash: puzzle.solutionHash };
+    // correctProof = await create_proof(prover, acir, input);
   });
 
-  it.skip('Should generate valid proof for correct input', async () => {
-    expect(correctProof instanceof Buffer).to.be.true;
-    const verification = await verify_proof(verifier, correctProof);
-    expect(verification).to.be.true;
+  it('Should generate valid proof for correct input', async () => {
+    // 👇 Workaround while BB is not OK
+    expect(verifyProof).to.not.throw();
+
+    // 👇 This is assuming BB is OK
+    // expect(correctProof instanceof Buffer).to.be.true;
+    // const verification = await verify_proof(verifier, correctProof);
+    // expect(verification).to.be.true;
   });
 
-  it.skip('Should fail with incorrect input', async () => {
+  it('Should fail with incorrect input', async () => {
     try {
-      const wrongSolutionBytes = convertSolutionToArrayBytes('00000');
-      const solutionHashBytes = convertSolutionHashToArrayBytes(puzzle.solutionHash);
-      const input = { solution: wrongSolutionBytes, solutionHash: solutionHashBytes };
-      await create_proof(prover, acir, input);
+      // 👇 Workaround while BB is not OK
+      await createProof([0, 0, 0, 0, 0], puzzle.solutionHash);
+
+      // 👇 This is assuming BB is OK
+      // const wrongSolutionBytes = convertSolutionToArrayBytes('00000');
+      // const solutionHashBytes = convertSolutionHashToArrayBytes(puzzle.solutionHash);
+      // const input = { solution: wrongSolutionBytes, solutionHash: solutionHashBytes };
+      // await create_proof(prover, acir, input);
     } catch (e) {
       expect(e instanceof Error).to.be.true;
     }
   });
 
-  it.skip('Should verify the proof on-chain', async () => {
-    const ver = await game.submitSolution(correctProof);
+  it('Should verify the proof on-chain', async () => {
+    correctProof = fs.readFileSync(path.resolve(__dirname, '../proofs/p.proof'), 'utf8');
+    const hashBytes = Array.from(ethers.utils.arrayify(puzzle.solutionHash));
+    console.log(hashBytes);
+
+    const ver = await game.submitSolution(correctProof, hashBytes);
     expect(ver).to.be.true;
   });
 });

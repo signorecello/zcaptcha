@@ -5,37 +5,43 @@ import { initialiseResolver } from '@noir-lang/noir-source-resolver';
 import { acir_read_bytes, compile } from '@noir-lang/noir_wasm';
 // @ts-ignore
 import { setup_generic_prover_and_verifier } from '@noir-lang/barretenberg';
+import { execSync } from 'child_process';
 
 async function main() {
   if (existsSync(path.join(__dirname, '../contract/plonk_vk.sol'))) {
     unlinkSync(path.join(__dirname, '../contract/plonk_vk.sol'));
   }
 
-  initialiseResolver((id: any) => {
-    try {
-      return readFileSync(`circuit/${id}`, { encoding: 'utf8' }) as string;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  });
+  // 👇 Workaround while BB is not OK
+  execSync('nargo codegen-verifier');
 
-  const compiled = await compile({
-    entry_point: 'index.nr',
-  });
+  //👇 This is assuming BB is OK
+  // initialiseResolver((id: any) => {
+  //   try {
+  //     return readFileSync(`src/${id}`, { encoding: 'utf8' }) as string;
+  //   } catch (err) {
+  //     console.error(err);
+  //     throw err;
+  //   }
+  // });
 
-  const acir_bytes = new Uint8Array(Buffer.from(compiled.circuit, 'hex'));
-  const acir = acir_read_bytes(acir_bytes);
+  // const compiled = await compile({
+  //   // entry_point: 'index.nr',
+  // });
 
-  const [prover, verifier] = await setup_generic_prover_and_verifier(acir);
-  console.log('Generating contract...');
+  // const acir_bytes = new Uint8Array(Buffer.from(compiled.circuit, 'hex'));
+  // const acir = acir_read_bytes(acir_bytes);
 
-  const sc = verifier.SmartContract();
+  // const [prover, verifier] = await setup_generic_prover_and_verifier(acir);
+  // console.log('Generating contract...');
 
-  console.log('Contract generated!');
-  writeFileSync(path.join(__dirname, '../contract/plonk_vk.sol'), sc, {
-    flag: 'w',
-  });
+  // const sc = verifier.SmartContract();
+
+  // console.log('Contract generated!');
+  // writeFileSync(path.join(__dirname, '../contract/plonk_vk.sol'), sc, {
+  //   flag: 'w',
+  // });
+
   console.log('Contract saved!');
   process.exit();
 }

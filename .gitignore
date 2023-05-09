@@ -38,6 +38,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# verifier
+contract/plonk_vk.sol
+
 # nargo
 target
 

@@ -2,7 +2,7 @@
 pragma solidity >=0.6.0;
 
 interface IVerifier {
-    function verify(bytes calldata) external view returns (bool);
+    function verify(bytes calldata, bytes32[] calldata publicInputs) external view returns (bool);
 }
 
 struct Puzzle {
@@ -12,7 +12,7 @@ struct Puzzle {
 
 import "hardhat/console.sol";
 
-contract Waldo {
+contract Captcha {
     IVerifier public verifier;
 
     mapping(uint => Puzzle) puzzles;
@@ -40,8 +40,8 @@ contract Waldo {
         return puzzle;
     }
 
-    function submitSolution(bytes calldata solution) public view returns (bool) {
-        bool proofResult = verifier.verify(solution);
+    function submitSolution(bytes calldata solution, bytes32[] calldata publicInputs) public view returns (bool) {
+        bool proofResult = verifier.verify(solution, publicInputs);
         require(proofResult, "Proof is not valid");
 
         return proofResult;

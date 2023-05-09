@@ -6,6 +6,7 @@ mod hash;
 // show how to use a module in Noir
 fn main(solution : [Field; 5], solutionHash : pub Field) -> pub bool {
     hash::hashStuff(solution, solutionHash)
+
 }
 
 #[test]

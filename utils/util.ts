@@ -1,4 +1,3 @@
-const { createHash } = require('crypto');
 // @ts-ignore
 import { buildPoseidon } from 'circomlibjs';
 
@@ -41,13 +40,21 @@ export async function getSolutionHash(value: any) {
   const split = value.split('');
 
   const arr = split.map((x: any) => x.charCodeAt(0));
-  //   const bytes = getUInt16Bytes(value);
-  //   const arr = [...bytes];
-  //   console.log(arr);
   const pos = poseidon(arr);
   const hash = '0x' + poseidon.F.toString(pos, 16);
-  //   const h = createHash('sha256').update(bytes).digest();
-  //   const solutionHash = toArrayBytes(h, 32);
-  console.log('POSEIDON', hash);
   return hash;
+}
+
+export function ensureEvenLengthHexString(hexString: string): string {
+  // Remove the '0x' prefix if it's present
+  const cleanHexString = hexString.startsWith('0x') ? hexString.slice(2) : hexString;
+
+  // Check if the length is odd
+  if (cleanHexString.length % 2 !== 0) {
+    // If odd, add a leading zero
+    return '0x0' + cleanHexString;
+  } else {
+    // If even, return the original string (with '0x' prefix)
+    return '0x' + cleanHexString;
+  }
 }

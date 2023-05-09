@@ -4,6 +4,9 @@ export type Puzzle = {
 };
 
 export type Captcha = {
-  key: string;
+  key: {
+    string: string;
+    arrayBytes: number[];
+  };
   solutionHash: string;
 };
